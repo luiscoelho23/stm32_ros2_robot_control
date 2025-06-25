@@ -20,6 +20,10 @@ A micro-ROS based robot control system for STM32F767 microcontroller with servo 
   - PB0: Green LED (Network ready)
   - PB14: Red LED (Network error)
   - PB7: Blue LED (PHY scan/Network waiting)
+  - PB8: I2C1_SCL (PCA9685 clock)
+  - PB9: I2C1_SDA (PCA9685 data)
+
+⚠️ **IMPORTANT**: Follow the UM1974 user manual for proper Ethernet pin configuration. Deviating from the recommended pin assignments may cause network communication failures.
 
 ## 🛠️ Software Requirements
 
@@ -50,13 +54,17 @@ cd stm32_ros2_robot_control
      - Netmask: `255.255.255.0`
      - Disable DHCP for static IP configuration
    - **Network Configuration STM-router router-PC (recommended)**
-    -
-    -
+     - Enable DHCP in STM32CubeMX LwIP settings
+     - Router assigns IP automatically (e.g., 192.168.1.100)
+     - PC and STM32 both connect through same router
+     - Update micro-ROS agent IP in code to match PC's router-assigned IP
 3. **Configure I2C1** for PCA9685 communication
-4. **Configure GPIO pins** for status LEDs:
+4. **Configure GPIO pins** for status LEDs, Ethernet connection, and I2C communication:
    - PB0: Green LED (Network ready)
    - PB14: Red LED (Network error)  
    - PB7: Blue LED (PHY scan/Network waiting)
+   - PB8: I2C1_SCL (PCA9685 clock)
+   - PB9: I2C1_SDA (PCA9685 data)
 5. **Enable FreeRTOS** with sufficient stack sizes:
    - Ethernet task: 256 words minimum
    - ROS task: 3840 words (micro-ROS requirement)
