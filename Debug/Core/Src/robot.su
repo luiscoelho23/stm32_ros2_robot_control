@@ -1,0 +1,4 @@
+../Core/Src/robot.c:7:13:pca9685_write	32	static
+../Core/Src/robot.c:11:6:pca9685_init	16	static
+../Core/Src/robot.c:22:17:angle_to_pwm	16	static
+../Core/Src/robot.c:28:6:set_servo	24	static
