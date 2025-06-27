@@ -234,6 +234,24 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rosidl_runtime_c/primitives_sequence.h \
  C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/string__functions.h \
  C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/string__type_support.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/joint_state.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/joint_state__struct.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/header__struct.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/joint_state__functions.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/rosidl_generator_c__visibility_control.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/joint_state__type_support.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/joint_jog.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/detail/joint_jog__struct.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/detail/joint_jog__functions.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/rosidl_generator_c__visibility_control.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/detail/joint_jog__type_support.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/joint_trajectory.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/detail/joint_trajectory__struct.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/detail/joint_trajectory_point__struct.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/builtin_interfaces/msg/detail/duration__struct.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/detail/joint_trajectory__functions.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/rosidl_generator_c__visibility_control.h \
+ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/detail/joint_trajectory__type_support.h \
  C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/uxr/client/transport.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h:
@@ -472,4 +490,22 @@ C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cube
 C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/rosidl_runtime_c/primitives_sequence.h:
 C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/string__functions.h:
 C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/string__type_support.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/joint_state.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/joint_state__struct.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/std_msgs/msg/detail/header__struct.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/joint_state__functions.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/rosidl_generator_c__visibility_control.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/sensor_msgs/msg/detail/joint_state__type_support.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/joint_jog.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/detail/joint_jog__struct.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/detail/joint_jog__functions.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/rosidl_generator_c__visibility_control.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/control_msgs/msg/detail/joint_jog__type_support.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/joint_trajectory.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/detail/joint_trajectory__struct.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/detail/joint_trajectory_point__struct.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/builtin_interfaces/msg/detail/duration__struct.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/detail/joint_trajectory__functions.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/rosidl_generator_c__visibility_control.h:
+C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/trajectory_msgs/msg/detail/joint_trajectory__type_support.h:
 C:/Users/LuisC/Desktop/IDEworkspace/stm32_ros2_robot_control/micro_ros_stm32cubemx_utils/microros_static_library_ide/libmicroros/include/uxr/client/transport.h:

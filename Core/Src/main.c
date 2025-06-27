@@ -25,6 +25,9 @@
 /* USER CODE BEGIN Includes */
 #include <stdbool.h>
 #include <time.h>
+#include <math.h>
+#include <string.h>
+#include <stdio.h>
 #include "robot.h"
 
 // Basic micro-ROS includes
@@ -34,6 +37,9 @@
 #include <rmw_microros/rmw_microros.h>
 #include <std_msgs/msg/int32.h>
 #include <std_msgs/msg/string.h>
+#include <sensor_msgs/msg/joint_state.h>
+#include <control_msgs/msg/joint_jog.h>
+#include <trajectory_msgs/msg/joint_trajectory.h>
 #include <uxr/client/transport.h>
 /* USER CODE END Includes */
 
@@ -62,14 +68,25 @@ osThreadId rosTaskHandle;
 /* USER CODE BEGIN PV */
 extern struct netif gnetif;
 
+// Joint state variables for ros2_control integration
+#define NUM_JOINTS 3
+static double current_joint_positions[NUM_JOINTS] = {0.0, 0.0, 0.0};
+static double target_joint_positions[NUM_JOINTS] = {0.0, 0.0, 0.0};
+static double joint_velocities[NUM_JOINTS] = {0.0, 0.0, 0.0};
+static double joint_efforts[NUM_JOINTS] = {0.0, 0.0, 0.0};
+
 // Simple micro-ROS variables
 rcl_node_t node;
 rcl_publisher_t publisher;
 rcl_subscription_t subscriber;
+rcl_subscription_t joint_cmd_subscriber;
+rcl_subscription_t trajectory_subscriber;
 rclc_support_t support;
 rclc_executor_t executor;
-std_msgs__msg__Int32 pub_msg;
+sensor_msgs__msg__JointState pub_msg;
 std_msgs__msg__String sub_msg;
+control_msgs__msg__JointJog joint_cmd_msg;
+trajectory_msgs__msg__JointTrajectory trajectory_msg;
 
 /* USER CODE END PV */
 
@@ -85,7 +102,8 @@ void ros(void const * argument);
 void debugNetworkStatus(void);
 
 // Simple micro-ROS functions
-void subscription_callback(const void * msgin);
+void joint_command_callback(const void * msgin);
+void trajectory_callback(const void * msgin);
 
 // Transport function prototypes (from udp_transport.c)
 bool cubemx_transport_open(struct uxrCustomTransport * transport);
@@ -106,42 +124,170 @@ int _gettimeofday(struct timeval *tv, void *tzvp)
   return 0;
 }
 
-// Simple subscription callback
-void subscription_callback(const void * msgin)
+// Joint command callback for ros2_control integration
+void joint_command_callback(const void * msgin)
 {
-  const std_msgs__msg__String * msg = (const std_msgs__msg__String *)msgin;
-  if (msg != NULL && msg->data.data != NULL) {
+  // Toggle blue LED to indicate callback entry
+  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+  
+  const control_msgs__msg__JointJog * msg = (const control_msgs__msg__JointJog *)msgin;
+  
+  // Enhanced safety checks - CRITICAL for preventing crashes
+  if (msg == NULL) {
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7); // Exit indicator
+    return;
+  }
+  
+  // Check if joint_names array exists and has valid size
+  if (msg->joint_names.data == NULL || msg->joint_names.size == 0 || msg->joint_names.size > NUM_JOINTS) {
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7); // Exit indicator
+    return;
+  }
+  
+  // Check if displacements array exists and has valid size
+  if (msg->displacements.data == NULL || msg->displacements.size == 0) {
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7); // Exit indicator
+    return;
+  }
+  
+  // Process joint commands with bounds checking
+  size_t max_joints = (msg->joint_names.size < msg->displacements.size) ? msg->joint_names.size : msg->displacements.size;
+  max_joints = (max_joints < NUM_JOINTS) ? max_joints : NUM_JOINTS;
+  
+  for (size_t i = 0; i < max_joints; i++) {
+    // Validate displacement value
+    double displacement = msg->displacements.data[i];
     
-    // Parse servo command: "servoX:Y" where X=servo number, Y=angle
-    char* command = (char*)msg->data.data;
+    // Check for NaN or infinite values
+    if (!isfinite(displacement)) {
+      continue; // Skip invalid values
+    }
     
-    // Look for "servo" followed by a number and colon
-    if (strncmp(command, "servo", 5) == 0) {
-      // Extract servo number
-      int servo_num = -1;
-      int angle = -1;
-      
-      // Find the colon separator
-      char* colon_pos = strchr(command + 5, ':');
-      if (colon_pos != NULL) {
-        // Parse servo number (between "servo" and ":")
-        servo_num = atoi(command + 5);
-        
-        // Parse angle (after ":")
-        angle = atoi(colon_pos + 1);
-        
-        // Validate ranges
-        if (servo_num >= 0 && servo_num <= 15 && angle >= 0 && angle <= 180) {
-          // Valid command - control the servo
-          set_servo(servo_num, angle);
-          
-          // Toggle blue LED to indicate successful command
-          HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-        }
+    // Clamp displacement to safe range (-π to π)
+    if (displacement > 180) displacement = 180;
+    if (displacement < 0) displacement = 0;
+    
+    // Update target position
+    target_joint_positions[i] = displacement;
+    
+    /*// Convert radians to servo angle (0-180 degrees) with safety clamping
+    double angle_rad = displacement;
+    angle_rad = fmax(-M_PI/2, fmin(M_PI/2, angle_rad)); // Clamp to safe servo range
+    uint8_t servo_angle = (uint8_t)((angle_rad + M_PI/2) * 180.0 / M_PI);
+    
+    // Additional servo angle validation
+    if (servo_angle > 180) servo_angle = 180;
+    */
+    // Send command to servo (commented out for safety during debugging)
+    set_servo(i, displacement);
+    
+    // Update current position for feedback
+    current_joint_positions[i] = displacement;
+  }
+  
+  // Toggle blue LED to indicate successful processing
+  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+}
+
+// Trajectory callback for ros2_control integration
+void trajectory_callback(const void * msgin)
+{
+  // Toggle blue LED to indicate callback entry
+  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+  
+  const trajectory_msgs__msg__JointTrajectory * msg = (const trajectory_msgs__msg__JointTrajectory *)msgin;
+  
+  // Enhanced safety checks
+  if (msg == NULL) {
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+    return;
+  }
+  
+  // Check if points array exists and has data
+  if (msg->points.data == NULL || msg->points.size == 0) {
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+    return;
+  }
+  
+  // Get the first trajectory point with safety checks
+  trajectory_msgs__msg__JointTrajectoryPoint* point = &msg->points.data[0];
+  if (point == NULL) {
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+    return;
+  }
+  
+  // Check positions array
+  if (point->positions.data == NULL || point->positions.size == 0 || point->positions.size > NUM_JOINTS) {
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+    return;
+  }
+  
+  // Process positions with bounds checking
+  size_t max_joints = (point->positions.size < NUM_JOINTS) ? point->positions.size : NUM_JOINTS;
+  
+  for (size_t i = 0; i < max_joints; i++) {
+    // Validate position value
+    double position = point->positions.data[i];
+    
+    // Check for NaN or infinite values
+    if (!isfinite(position)) {
+      continue; // Skip invalid values
+    }
+    
+    // Clamp position to safe range
+    if (position > M_PI) position = M_PI;
+    if (position < -M_PI) position = -M_PI;
+    
+    // Update target position
+    target_joint_positions[i] = position;
+    
+    // Convert radians to servo angle with safety clamping
+    double angle_rad = position;
+    angle_rad = fmax(-M_PI/2, fmin(M_PI/2, angle_rad)); // Clamp to safe servo range
+    uint8_t servo_angle = (uint8_t)((angle_rad + M_PI/2) * 180.0 / M_PI);
+    
+    // Additional servo angle validation
+    if (servo_angle > 180) servo_angle = 180;
+    
+    // Send command to servo (commented out for safety during debugging)
+    // set_servo(i, servo_angle);
+    
+    // Update current position
+    current_joint_positions[i] = angle_rad;
+  }
+  
+  // Handle velocities if provided and valid
+  if (point->velocities.data != NULL && point->velocities.size > 0) {
+    size_t max_vel_joints = (point->velocities.size < NUM_JOINTS) ? point->velocities.size : NUM_JOINTS;
+    for (size_t i = 0; i < max_vel_joints; i++) {
+      double velocity = point->velocities.data[i];
+      if (isfinite(velocity)) {
+        // Clamp velocity to reasonable range
+        if (velocity > 10.0) velocity = 10.0;
+        if (velocity < -10.0) velocity = -10.0;
+        joint_velocities[i] = velocity;
       }
     }
   }
+  
+  // Handle efforts if provided and valid
+  if (point->effort.data != NULL && point->effort.size > 0) {
+    size_t max_eff_joints = (point->effort.size < NUM_JOINTS) ? point->effort.size : NUM_JOINTS;
+    for (size_t i = 0; i < max_eff_joints; i++) {
+      double effort = point->effort.data[i];
+      if (isfinite(effort)) {
+        // Clamp effort to reasonable range
+        if (effort > 100.0) effort = 100.0;
+        if (effort < -100.0) effort = -100.0;
+        joint_efforts[i] = effort;
+      }
+    }
+  }
+  
+  // Toggle blue LED to indicate successful processing
+  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
 }
+
 void debugNetworkStatus(void)
 {  
   if (netif_is_up(&gnetif) && netif_is_link_up(&gnetif)) {
@@ -207,11 +353,11 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of ethernetTask */
-  osThreadDef(ethernetTask, ethernetStatusCheck, osPriorityAboveNormal, 0, 256);
+  osThreadDef(ethernetTask, ethernetStatusCheck, osPriorityIdle, 0, 256);
   ethernetTaskHandle = osThreadCreate(osThread(ethernetTask), NULL);
 
   /* definition and creation of robotTask */
-  osThreadDef(robotTask, robotControl, osPriorityIdle, 0, 128);
+  osThreadDef(robotTask, robotControl, osPriorityIdle, 0, 256);
   robotTaskHandle = osThreadCreate(osThread(robotTask), NULL);
 
   /* definition and creation of rosTask */
@@ -417,7 +563,12 @@ void robotControl(void const * argument)
   set_servo(1, 90);   // Servo 1 to center
   set_servo(2, 90);   // Servo 2 to center
   
+  current_joint_positions[0] = 90;
+  current_joint_positions[1] = 90;
+  current_joint_positions[2] = 90;
+
   for (;;) {
+	  osDelay(2000);
   }
   /* USER CODE END robotControl */
 }
@@ -484,8 +635,8 @@ void ros(void const * argument)
   if (rclc_publisher_init_default(
     &publisher,
     &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-    "counter") != RCL_RET_OK) {
+    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
+    "joint_states") != RCL_RET_OK) {
     // Error - blink red LED medium
     for(;;) {
       HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
@@ -493,12 +644,25 @@ void ros(void const * argument)
     }
   }
 
-  // Create subscriber
+  // Create joint command subscriber for ros2_control
   if (rclc_subscription_init_default(
-    &subscriber,
+    &joint_cmd_subscriber,
     &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
-    "servo_cmd") != RCL_RET_OK) {
+    ROSIDL_GET_MSG_TYPE_SUPPORT(control_msgs, msg, JointJog),
+    "joint_command") != RCL_RET_OK) {
+    // Error - blink red LED medium
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+      osDelay(400);
+    }
+  }
+
+  // Create trajectory subscriber for ros2_control
+  if (rclc_subscription_init_default(
+    &trajectory_subscriber,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(trajectory_msgs, msg, JointTrajectory),
+    "joint_trajectory") != RCL_RET_OK) {
     // Error - blink red LED medium
     for(;;) {
       HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
@@ -507,7 +671,7 @@ void ros(void const * argument)
   }
 
   // Create executor
-  if (rclc_executor_init(&executor, &support.context, 1, &allocator) != RCL_RET_OK) {
+  if (rclc_executor_init(&executor, &support.context, 5, &allocator) != RCL_RET_OK) {
     // Error - blink blue LED  slow
     for(;;) {
       HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
@@ -515,9 +679,19 @@ void ros(void const * argument)
     }
   }
 
-  // Add subscription to executor
-  if (rclc_executor_add_subscription(&executor, &subscriber, &sub_msg, 
-    &subscription_callback, ON_NEW_DATA) != RCL_RET_OK) {
+  // Add joint command subscription to executor
+  if (rclc_executor_add_subscription(&executor, &joint_cmd_subscriber, &joint_cmd_msg, 
+    &joint_command_callback, ON_NEW_DATA) != RCL_RET_OK) {
+    // Error - blink red LED  slow
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(1000);
+    }
+  }
+
+  // Add trajectory subscription to executor
+  if (rclc_executor_add_subscription(&executor, &trajectory_subscriber, &trajectory_msg, 
+    &trajectory_callback, ON_NEW_DATA) != RCL_RET_OK) {
     // Error - blink red LED  slow
     for(;;) {
       HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
@@ -526,32 +700,194 @@ void ros(void const * argument)
   }
 
   // Initialize messages
-  pub_msg.data = 0;
+  // Initialize JointState message
+  pub_msg.header.frame_id.data = (char*)malloc(10);
+  pub_msg.header.frame_id.size = 0;
+  pub_msg.header.frame_id.capacity = 10;
+  
+  const size_t num_joints = 3;
+  
+  pub_msg.name.data = (rosidl_runtime_c__String*)malloc(num_joints * sizeof(rosidl_runtime_c__String));
+  pub_msg.name.size = num_joints;
+  pub_msg.name.capacity = num_joints;
+  
+  pub_msg.position.data = (double*)malloc(num_joints * sizeof(double));
+  pub_msg.position.size = num_joints;
+  pub_msg.position.capacity = num_joints;
+  
+  pub_msg.velocity.data = (double*)malloc(num_joints * sizeof(double));
+  pub_msg.velocity.size = num_joints;
+  pub_msg.velocity.capacity = num_joints;
+  
+  pub_msg.effort.data = (double*)malloc(num_joints * sizeof(double));
+  pub_msg.effort.size = num_joints;
+  pub_msg.effort.capacity = num_joints;
+  
+  // Initialize joint names and values
+  const char* joint_names[NUM_JOINTS] = {"joint_1", "joint_2", "joint_3"};
+  for (size_t i = 0; i < num_joints; i++) {
+    pub_msg.name.data[i].data = (char*)malloc(20);
+    pub_msg.name.data[i].capacity = 20;
+    strcpy(pub_msg.name.data[i].data, joint_names[i]);
+    pub_msg.name.data[i].size = strlen(joint_names[i]);
+    
+    pub_msg.position.data[i] = current_joint_positions[i];
+    pub_msg.velocity.data[i] = joint_velocities[i];
+    pub_msg.effort.data[i] = joint_efforts[i];
+  }
+  
   sub_msg.data.data = (char*)malloc(50);
   sub_msg.data.size = 0;
   sub_msg.data.capacity = 50;
 
+  // Initialize joint command message
+  joint_cmd_msg.header.frame_id.data = (char*)malloc(10);
+  joint_cmd_msg.header.frame_id.size = 0;
+  joint_cmd_msg.header.frame_id.capacity = 10;
+  
+  joint_cmd_msg.joint_names.data = (rosidl_runtime_c__String*)malloc(NUM_JOINTS * sizeof(rosidl_runtime_c__String));
+  if (joint_cmd_msg.joint_names.data == NULL) {
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(100);
+    }
+  }
+  joint_cmd_msg.joint_names.size = 0;
+  joint_cmd_msg.joint_names.capacity = NUM_JOINTS;
+  
+  // CRITICAL: Initialize individual joint name strings
+  for (size_t i = 0; i < NUM_JOINTS; i++) {
+    joint_cmd_msg.joint_names.data[i].data = (char*)malloc(20);
+    if (joint_cmd_msg.joint_names.data[i].data == NULL) {
+      for(;;) {
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+        osDelay(100);
+      }
+    }
+    joint_cmd_msg.joint_names.data[i].capacity = 20;
+    joint_cmd_msg.joint_names.data[i].size = 0;
+  }
+  
+  joint_cmd_msg.displacements.data = (double*)malloc(NUM_JOINTS * sizeof(double));
+  if (joint_cmd_msg.displacements.data == NULL) {
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(100);
+    }
+  }
+  joint_cmd_msg.displacements.size = 0;
+  joint_cmd_msg.displacements.capacity = NUM_JOINTS;
+  
+  joint_cmd_msg.velocities.data = (double*)malloc(NUM_JOINTS * sizeof(double));
+  if (joint_cmd_msg.velocities.data == NULL) {
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(100);
+    }
+  }
+  joint_cmd_msg.velocities.size = 0;
+  joint_cmd_msg.velocities.capacity = NUM_JOINTS;
+  
+  // Initialize trajectory message (basic allocation)
+  trajectory_msg.header.frame_id.data = (char*)malloc(10);
+  if (trajectory_msg.header.frame_id.data == NULL) {
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(100);
+    }
+  }
+  trajectory_msg.header.frame_id.size = 0;
+  trajectory_msg.header.frame_id.capacity = 10;
+  
+  trajectory_msg.joint_names.data = (rosidl_runtime_c__String*)malloc(NUM_JOINTS * sizeof(rosidl_runtime_c__String));
+  if (trajectory_msg.joint_names.data == NULL) {
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(100);
+    }
+  }
+  trajectory_msg.joint_names.size = 0;
+  trajectory_msg.joint_names.capacity = NUM_JOINTS;
+  
+  // CRITICAL: Initialize trajectory joint name strings
+  for (size_t i = 0; i < NUM_JOINTS; i++) {
+    trajectory_msg.joint_names.data[i].data = (char*)malloc(20);
+    if (trajectory_msg.joint_names.data[i].data == NULL) {
+      for(;;) {
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+        osDelay(100);
+      }
+    }
+    trajectory_msg.joint_names.data[i].capacity = 20;
+    trajectory_msg.joint_names.data[i].size = 0;
+  }
+  
+  trajectory_msg.points.data = (trajectory_msgs__msg__JointTrajectoryPoint*)malloc(sizeof(trajectory_msgs__msg__JointTrajectoryPoint));
+  if (trajectory_msg.points.data == NULL) {
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(100);
+    }
+  }
+  trajectory_msg.points.size = 0;
+  trajectory_msg.points.capacity = 1;
+
+  // CRITICAL: Initialize trajectory point arrays - THIS PREVENTS CRASHES!
+  trajectory_msg.points.data[0].positions.data = (double*)malloc(NUM_JOINTS * sizeof(double));
+  if (trajectory_msg.points.data[0].positions.data == NULL) {
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(100);
+    }
+  }
+  trajectory_msg.points.data[0].positions.capacity = NUM_JOINTS;
+  trajectory_msg.points.data[0].positions.size = 0;
+
+  trajectory_msg.points.data[0].velocities.data = (double*)malloc(NUM_JOINTS * sizeof(double));
+  if (trajectory_msg.points.data[0].velocities.data == NULL) {
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(100);
+    }
+  }
+  trajectory_msg.points.data[0].velocities.capacity = NUM_JOINTS;
+  trajectory_msg.points.data[0].velocities.size = 0;
+
+  trajectory_msg.points.data[0].effort.data = (double*)malloc(NUM_JOINTS * sizeof(double));
+  if (trajectory_msg.points.data[0].effort.data == NULL) {
+    for(;;) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+      osDelay(100);
+    }
+  }
+  trajectory_msg.points.data[0].effort.capacity = NUM_JOINTS;
+  trajectory_msg.points.data[0].effort.size = 0;
+
   // Success - solid green LED
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-  
-  uint32_t publish_timer = 0;
   
   /* Infinite loop */
   for(;;)
   {
     // Handle subscriptions
-    rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
+    rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
     
-    // Publish counter every 1 second
-    if (publish_timer >= 100) { // 100 * 10ms = 1 second
-      pub_msg.data++;
-      rcl_publish(&publisher, &pub_msg, NULL);
-      publish_timer = 0;
-    } else {
-      publish_timer++;
+    // Publish joint state every 1 second
+    // Update timestamp
+    uint64_t time = HAL_GetTick();
+    pub_msg.header.stamp.sec = time / 1000;
+    pub_msg.header.stamp.nanosec = (time % 1000) * 1000000;
+
+    // Update joint positions with actual hardware state
+    for (size_t i = 0; i < pub_msg.position.size; i++) {
+      pub_msg.position.data[i] = current_joint_positions[i];
+      pub_msg.velocity.data[i] = joint_velocities[i];
+      pub_msg.effort.data[i] = joint_efforts[i];
     }
+
+    rcl_publish(&publisher, &pub_msg, NULL);
     
-    osDelay(10);
+    osDelay(9);
   }
   /* USER CODE END ros */
 }
